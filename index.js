@@ -1,11 +1,17 @@
 const http = require('http');
 const request = require('request');
+const fs = require('fs');
 
 let requestBody;
+let htmlContent;
 
 const createHtmlStringFromJSON = retrievedData => {
-  let htmlString =
-    '<html lang="en">\n\t<header>\n\t\t<title>Data aggregator</title>\n\t\t<meta charset="UTF-8">\n\t</header>\n\t<body>\n\t\t<table>\n';
+  const bodyBeginIndex = htmlContent.indexOf('<body>');
+  const bodyEndIndex = htmlContent.indexOf('</body>');
+  const stringUntilBody = htmlContent.slice(0, bodyBeginIndex + 6);
+  const stringFromBody = htmlContent.slice(bodyEndIndex);
+
+  let htmlString = '\n\t\t<table>\n';
   htmlString += '\t\t\t<theader>\n\t\t\t\t<tr>\n';
   Object.entries(retrievedData[0]).forEach(([key, value]) => {
     if (typeof value !== 'object') {
@@ -23,22 +29,39 @@ const createHtmlStringFromJSON = retrievedData => {
     });
     htmlString += '\t\t\t\t</tr>\n';
   });
-  htmlString += '\t\t\t</tbody>\n\t\t</table>\n\t</body>\n</html>';
-  return htmlString;
+  htmlString += '\t\t\t</tbody>\n\t\t</table>\n\t';
+  return stringUntilBody + htmlString + stringFromBody;
 };
-
-request('https://www.bnefoodtrucks.com.au/api/1/trucks', (err, res, body) => {
-  requestBody = body;
-});
 
 http
   .createServer((req, res) => {
-    if (requestBody) {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(createHtmlStringFromJSON(JSON.parse(requestBody)));
+    if (req.url === '/') {
+      request(
+        'https://www.bnefoodtrucks.com.au/api/1/trucks',
+        (err, _res, body) => {
+          if (err) {
+            throw err;
+          }
+          requestBody = body;
+          fs.readFile('./index.html', (err, html) => {
+            if (err) {
+              throw err;
+            }
+            htmlContent = html;
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(createHtmlStringFromJSON(JSON.parse(requestBody)));
+          });
+        }
+      );
     } else {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end('Nothing retrieved yet');
+      fs.readFile(`./${req.url}`, (err, data) => {
+        if (err) {
+          res.statusCode = 404;
+          res.end('404: File Not Found');
+        } else {
+          res.end(data);
+        }
+      });
     }
   })
   .listen(8080);
