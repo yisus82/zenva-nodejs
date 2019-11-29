@@ -2,6 +2,7 @@ const http = require('http');
 const request = require('request');
 const fs = require('fs');
 const csv = require('csv');
+const updateLog = require('./update_log.js');
 
 let requestBody;
 let htmlContent;
@@ -74,6 +75,7 @@ http
               throw err;
             }
             htmlContent = html;
+            updateLog.updateLogFile('Accessed JSON data');
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(createHtmlStringFromJSON(JSON.parse(requestBody)));
           });
@@ -93,6 +95,7 @@ http
                 throw err;
               }
               htmlContent = html;
+              updateLog.updateLogFile('Accessed CSV data');
               res.writeHead(200, { 'Content-Type': 'text/html' });
               res.end(createHtmlStringFromCSV(requestBody));
             });
